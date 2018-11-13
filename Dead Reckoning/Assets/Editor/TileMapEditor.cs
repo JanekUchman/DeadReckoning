@@ -5,9 +5,9 @@ using System.Collections.Generic;
 
 
 [CustomEditor(typeof(TileMap))]
-
 public class TileMapEditor : Editor
 {
+
     private TileMap tileMap;
     [SerializeField]
     private GameObject currentTile;
@@ -21,6 +21,7 @@ public class TileMapEditor : Editor
     public void OnEnable()
     {
         tileMap = (TileMap) target;
+        EditorUtility.SetDirty(tileMap);
         if (!tileMap.Initialized)
             tileMap.Initialize();
     }
