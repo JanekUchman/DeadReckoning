@@ -23,7 +23,6 @@ GameObject:
   - component: {fileID: 92342863038782030}
   - component: {fileID: 124672326117179478}
   - component: {fileID: 81425392202818600}
-  - component: {fileID: 114031938814148262}
   - component: {fileID: 114711491899468746}
   - component: {fileID: 114702593240933232}
   m_Layer: 0
@@ -41,7 +40,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4083869152020122}
-  - component: {fileID: 114117002109561744}
   - component: {fileID: 114200022952854084}
   m_Layer: 0
   m_Name: CameraController
@@ -100,7 +98,7 @@ Camera:
   near clip plane: 0.3
   far clip plane: 1000
   field of view: 60
-  orthographic: 1
+  orthographic: 0
   orthographic size: 3.5
   m_Depth: -1
   m_CullingMask:
@@ -131,38 +129,6 @@ Behaviour:
   m_PrefabInternal: {fileID: 100100000}
   m_GameObject: {fileID: 1385331752435366}
   m_Enabled: 1
---- !u!114 &114031938814148262
-MonoBehaviour:
-  m_ObjectHideFlags: 1
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInternal: {fileID: 100100000}
-  m_GameObject: {fileID: 1385331752435366}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: feb54fab41c4f7545acdd6390260034a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  Parent: {fileID: 0}
-  Obj: {fileID: 4280369846231122}
-  Radius: 4.5
-  Dist: 0
-  MousePos1: {x: 0, y: 0, z: 0}
-  MousePos2: {x: 0, y: 0, z: 0}
-  ScreenMouse: {x: 0, y: 0, z: 0}
-  MouseOffset: {x: 0, y: 0, z: 0}
---- !u!114 &114117002109561744
-MonoBehaviour:
-  m_ObjectHideFlags: 1
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInternal: {fileID: 100100000}
-  m_GameObject: {fileID: 1631291541477340}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2ab8353b5ebd32545867da143199a814, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  DefaultPosInfluence: {x: 0.15, y: 0.15, z: 0.15}
-  DefaultRotInfluence: {x: 1, y: 1, z: 1}
 --- !u!114 &114200022952854084
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -174,12 +140,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e0ad88435e6e23e4280dadb764e6f22f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  playerToFollow: {fileID: 0}
   characterYOffset: 0.3
   waitForYChange: 3
-  maxRoomX: 8
-  maxRoomY: 7
-  minRoomX: -8
-  minRoomY: -7
+  maxRoomX: 10.3
+  maxRoomY: 21.2
+  minRoomX: -11.39
+  minRoomY: -5.3
   zDistanceFromCharacter: -5
   cameraLerpSpeed: 5
   characterLead: 1
@@ -195,8 +162,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2ab8353b5ebd32545867da143199a814, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  DefaultPosInfluence: {x: 0.15, y: 0.15, z: 0.15}
-  DefaultRotInfluence: {x: 1, y: 1, z: 1}
+  DefaultPosInfluence: {x: 2, y: 2, z: 2}
+  DefaultRotInfluence: {x: 0, y: 0, z: 0}
 --- !u!114 &114711491899468746
 MonoBehaviour:
   m_ObjectHideFlags: 1

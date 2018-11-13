@@ -1,14 +1,17 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using EZCameraShake;
+using Random = UnityEngine.Random;
 
 public class Shotgun : MonoBehaviour {
 
 	private SpriteRenderer playerRenderer = null;
-
+	
+	[SerializeField] private Camera camera;
+	[SerializeField] private GameObject gunOwner;
 	[SerializeField] private string fireButton = "Fire1";
-	[SerializeField] private string reloadButton = "Fire2";
 	[SerializeField] private float gunToCharacterLerpSpeed = 100.0f;
 	[SerializeField] private GameObject bullet = null;
 	
@@ -18,20 +21,15 @@ public class Shotgun : MonoBehaviour {
 	[SerializeField] private float cameraShakeRoughness = 5f;
 	[SerializeField] private float cameraShakeFadeInTime = 1f;
 	[SerializeField] private float cameraShakeFadeOutTime = 3f; 
-	[SerializeField] private bool screenShakeOnHoldFire = true; 
-	[SerializeField] private bool screenShakeOnFire = false;
+
     [SerializeField] private Vector3 screenShakePositionVariance = new Vector3(0, 0, 0);
     [SerializeField] private Vector3 screenShakeRotationVariance = new Vector3(2, 2, 2);
 
 	[Header("Weapon Settings")] 
 	[SerializeField] private float spreadAngle;
-	[SerializeField] private int maxAmmo = 4;
 	[SerializeField] private float fireDelay = 0.5f;
 	[SerializeField] private int numberOfPellets = 8;
 	[SerializeField] private float knockback = 100.0f;
-
-	[Header("Reload Settings")]
-	[SerializeField] private ReloadController reloadController;
 	
 
 	private SpriteRenderer gunSprite = null;
@@ -46,9 +44,7 @@ public class Shotgun : MonoBehaviour {
 	private bool canFire = true;
 
 	private Transform bulletSpawnPoint = null;
-	[HideInInspector] public bool swapControlTypes = true;
 	[HideInInspector] public bool isShooting  = false;
-	[HideInInspector] public bool shouldSwapDirections = false;
 
     void Start()
     {
@@ -58,13 +54,21 @@ public class Shotgun : MonoBehaviour {
 	private void OnEnable()
 	{
 //		GunController.instance.ammo = maxAmmo;
-		playerRenderer = GameObject.FindGameObjectWithTag("Player").GetComponent<SpriteRenderer>();
 		gunSprite = GetComponentInChildren<SpriteRenderer>();
 		gunTransform = transform.GetChild(0);
-		bulletSpawnPoint = GameObject.FindGameObjectWithTag("BulletSpawnPoint").GetComponent<Transform>();
-		playerRigidBody = GameObject.FindGameObjectWithTag("Player").GetComponent<Rigidbody2D>();
-		playerController = GameObject.FindGameObjectWithTag("Player").GetComponent<PlayerController>();
-		cameraController = Camera.main.GetComponentInParent<CameraController>();
+		bulletSpawnPoint = transform.GetChild(0);
+		
+		playerRenderer = gunOwner.GetComponent<SpriteRenderer>();
+		playerRigidBody = gunOwner.GetComponent<Rigidbody2D>();
+		playerController = gunOwner.GetComponent<PlayerController>();
+		
+		cameraController = camera.GetComponentInParent<CameraController>();
+		playerController.PlayerDeath += OnPlayerDeath;
+	}
+
+	private void OnPlayerDeath(object sender, EventArgs eventArgs)
+	{
+		canFire = false;
 	}
 
 	private void SetUpShakeInstance()
@@ -79,11 +83,10 @@ public class Shotgun : MonoBehaviour {
 
 
 	void Update () {
-	    gameObject.transform.position = Vector3.Lerp(new Vector3(transform.position.x, transform.position.y, 0.0f),
-	        new Vector3(playerRenderer.bounds.center.x, playerRenderer.bounds.center.y, 0.0f),
-	        Time.deltaTime * gunToCharacterLerpSpeed);
+	    LerpGunToPlayer();
+		
         var angleToMouse = GetAngleFromMouse();
-	    AdjustGunFromAngle(angleToMouse);
+	    RotateSpriteToCursor(angleToMouse);
 	    storeTime += Time.deltaTime;
 		if (Input.GetButton(fireButton) && storeTime > nextFire && canFire)
 		{
@@ -95,15 +98,16 @@ public class Shotgun : MonoBehaviour {
             ScreenShake(false);
 			isShooting = false;
 		}
-
-		if (Input.GetButton(reloadButton))
-		{
-			reloadController.StartReload();
-		}
-		
 	}
 
-    private float GetAngleFromMouse()
+	private void LerpGunToPlayer()
+	{
+		gameObject.transform.position = Vector3.Lerp(new Vector3(transform.position.x, transform.position.y, 0.0f),
+			new Vector3(playerRenderer.bounds.center.x, playerRenderer.bounds.center.y, 0.0f),
+			Time.deltaTime * gunToCharacterLerpSpeed);
+	}
+
+	private float GetAngleFromMouse()
     {
         var mousePos = Input.mousePosition;
         mousePos.z = 5.0f;
@@ -115,21 +119,8 @@ public class Shotgun : MonoBehaviour {
         return exactAngle;
     }
 
-    private void ControlCamera(float angleToMouse)
-    {
-        if ((angleToMouse < 180 && angleToMouse > 90) || (angleToMouse > -180 && angleToMouse < -90))
-        {
-            cameraController.FlipCamera(-1);
-            playerController.movementDirection = -1;
-        }
-        else
-        {
-            cameraController.FlipCamera(1);
-            playerController.movementDirection = 1;
-        }
-    }
 
-    private void AdjustGunFromAngle(float angleToMouse)
+    private void RotateSpriteToCursor(float angleToMouse)
     {
         transform.rotation = Quaternion.Euler(new Vector3(0, 0, angleToMouse));
         if (angleToMouse < 90 && angleToMouse > -90 && flippedLeft)
@@ -146,23 +137,13 @@ public class Shotgun : MonoBehaviour {
 
     private void FireGun(float angleToMouse)
     {
-
         isShooting = true;
-	    ReduceAmmo();
 	    KnockBack();
-	    SpawnAndFireBullet(angleToMouse);
-        ControlCamera(angleToMouse);
+	    SpawnAndFireBullets(angleToMouse, 0, bulletSpawnPoint.position);
+        cameraController.MoveBasedOnAngle(angleToMouse);
         nextFire = fireDelay;
         storeTime = 0.0f;
     }
-
-	private void ReduceAmmo()
-	{
-		GunController.instance.ammo--;
-		if (GunController.instance.ammo == 0) canFire = false;
-	}
-
-	
 
 	private void KnockBack()
     {
@@ -172,20 +153,21 @@ public class Shotgun : MonoBehaviour {
 
 	   
     }
-    //TODO add object pooling
-    private void SpawnAndFireBullet(float angleToMouse)
-    {
 
+    private void SpawnAndFireBullets(float angle, int seed, Vector3 position)
+    {
+	    //Random seed based on timestamp for getting shotgun spread
+		Random.InitState(seed);
 	    for (int i = 0; i < numberOfPellets; i++)
 	    {
 		    var inaccuracyModifier = Random.Range(-spreadAngle, spreadAngle);
 
 		    var newProjectile = Instantiate(bullet,
-			    new Vector3(bulletSpawnPoint.position.x, bulletSpawnPoint.position.y, bulletSpawnPoint.position.z),
+			    position,
 			    Quaternion.Euler(new Vector3(0, 0, transform.eulerAngles.z + inaccuracyModifier))) as GameObject;
 
 		    var bulletController = newProjectile.GetComponent<BulletController>();
-		    bulletController.FireBullet((angleToMouse + inaccuracyModifier), shakeInstance);
+		    bulletController.FireBullet((angle + inaccuracyModifier), gameObject.tag, shakeInstance);
 	    }
     }
 
@@ -193,18 +175,16 @@ public class Shotgun : MonoBehaviour {
     {
         if (isFiring)
         { 
-            if (screenShakeOnHoldFire)
-                 shakeInstance.StartFadeIn(cameraShakeFadeInTime);
-            else if (screenShakeOnFire)
-                CameraShaker.Instance.ShakeOnce(cameraShakeMagnitude, cameraShakeRoughness, fadeInTime: 0, fadeOutTime: cameraShakeFadeOutTime);
+            CameraShaker.Instance.ShakeOnce(cameraShakeMagnitude, cameraShakeRoughness, fadeInTime: 0, fadeOutTime: cameraShakeFadeOutTime);
         }
-        else 
-            shakeInstance.StartFadeOut(cameraShakeFadeOutTime);
+	    else
+	    {
+		    shakeInstance.StartFadeOut(cameraShakeFadeOutTime);
+	    }
     }
 
     private void OnDestroy()
     {
-        if (Camera.main)
-            CameraShaker.Instance.FadeOutAndRemoveShakeInstance(shakeInstance, cameraShakeFadeOutTime);
+        if (Camera.main) CameraShaker.Instance.FadeOutAndRemoveShakeInstance(shakeInstance, cameraShakeFadeOutTime);
     }
 }

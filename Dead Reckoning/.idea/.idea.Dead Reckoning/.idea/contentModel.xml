@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ContentModelStore">
-    <e p="C:\Users\Janek\.Rider2017.3\system\resharper-host\local\Transient\ReSharperHost\v11\SolutionCaches\_Dead Reckoning.-146736357.00" t="ExcludeRecursive" />
-    <e p="C:\Users\Janek\Documents\GitHub\DeadReckoning\Dead Reckoning" t="IncludeRecursive">
+    <e p="C:\Users\Janek\.Rider2018.2\system\extResources" t="IncludeRecursive" />
+    <e p="C:\Users\Janek\.Rider2018.2\system\resharper-host\local\Transient\ReSharperHost\v182\SolutionCaches\_Dead Reckoning.-3040791.00" t="ExcludeRecursive" />
+    <e p="C:\Users\Janek\OneDrive\Documents\GitHub\DeadReckoning\Dead Reckoning" t="IncludeRecursive">
       <e p="Assembly-CSharp-Editor-firstpass.csproj" t="IncludeRecursive" />
       <e p="Assembly-CSharp-Editor.csproj" t="IncludeRecursive" />
       <e p="Assembly-CSharp-firstpass.csproj" t="IncludeRecursive" />
@@ -16,11 +17,6 @@
           <e p="TileMapEditor.cs" t="Include" />
         </e>
         <e p="Plugins" t="Include">
-          <e p="Editor" t="Include">
-            <e p="JetBrains" t="Include">
-              <e p="Unity3DRider.cs" t="Include" />
-            </e>
-          </e>
           <e p="EZ Camera Shake" t="Include">
             <e p="Demo" t="Include">
               <e p="Sample Scripts" t="Include">
@@ -338,6 +334,10 @@
         <e p="Scripts" t="Include">
           <e p="Controllers" t="Include">
             <e p="CameraController.cs" t="Include" />
+            <e p="SpawnPointManager.cs" t="Include" />
+          </e>
+          <e p="Interfaces" t="Include">
+            <e p="IDamageable.cs" t="Include" />
           </e>
           <e p="Maps" t="Include">
             <e p="DecorMap.cs" t="Include" />
@@ -355,13 +355,10 @@
           </e>
           <e p="Statics" t="Include">
             <e p="CharacterFunctions.cs" t="Include" />
-            <e p="Constants.cs" t="Include" />
             <e p="Layers.cs" t="Include" />
           </e>
           <e p="Weapons" t="Include">
             <e p="BulletController.cs" t="Include" />
-            <e p="GunController.cs" t="Include" />
-            <e p="ReloadController.cs" t="Include" />
             <e p="Shotgun.cs" t="Include" />
           </e>
         </e>

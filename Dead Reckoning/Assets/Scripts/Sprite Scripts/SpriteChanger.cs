@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 [ExecuteInEditMode]
 //This script is awful and needs updating
+//Once sprites have all been placed, remove this component and add a composite collider
 public class SpriteChanger : MonoBehaviour 
 {
 	[SerializeField] private Sprite TOpen = null;
@@ -40,9 +41,9 @@ public class SpriteChanger : MonoBehaviour
 
 	private void Update()
 	{
-		Vector2 lineStart = new Vector2(transform.position.x + rend.bounds.extents.x + colliderOffset, transform.position.y );
-		Vector2 vectorToSearch = new Vector2 (lineStart.x + lengthToSearch, transform.position.y);
-		Debug.DrawLine(lineStart, vectorToSearch);
+//		Vector2 lineStart = new Vector2(transform.position.x + rend.bounds.extents.x + colliderOffset, transform.position.y );
+//		Vector2 vectorToSearch = new Vector2 (lineStart.x + lengthToSearch, transform.position.y);
+//		Debug.DrawLine(lineStart, vectorToSearch);
 	}
 
 	public void AssignSprite()
