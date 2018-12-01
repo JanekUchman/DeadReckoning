@@ -13,7 +13,7 @@ public class SpawnPointManager : MonoBehaviour
 	{
 		if (instance) DestroyImmediate(this);
 		else instance = this;
-
+		spawnPoints = new Transform[transform.childCount];
 		for (int i = 0; i < transform.childCount; i++)
 		{
 			spawnPoints[i] = transform.GetChild(i);

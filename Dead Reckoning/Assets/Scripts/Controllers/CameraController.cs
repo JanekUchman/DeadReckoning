@@ -54,7 +54,7 @@ public class CameraController : MonoBehaviour {
 	    {
 		    yTemp = playerTransform.position.y + characterYOffset;
 	    }
-	    else if ((yTemp - playerTransform.position.y - characterYOffset > Mathf.Abs(waitForYChange)))
+	    else if (Mathf.Abs(yTemp - playerTransform.position.y - characterYOffset) > Mathf.Abs(waitForYChange))
 	    {
 		    yTemp = playerTransform.position.y;
 	    }

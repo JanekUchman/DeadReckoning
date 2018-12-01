@@ -22,6 +22,8 @@ public class PlayerController : MonoBehaviour, IDamageable {
     [SerializeField] private float jumpSpeed = 8; 
     [Header ("Damage variables")]
 	[SerializeField] private float health = 500.0f;
+
+	private float maxHealth;
 	[SerializeField] private float invulnerabilityTimer = 0.3f;
     public bool canTakeDamage = true;
 
@@ -46,6 +48,7 @@ public class PlayerController : MonoBehaviour, IDamageable {
 		rigidbody2D = gameObject.GetComponent<Rigidbody2D>();
 		playerAnimator = GetComponent<Animator>();
 		playerBoxCollider = GetComponent<BoxCollider2D>();
+		maxHealth = health;
 	}
 
     void Update()
@@ -59,6 +62,7 @@ public class PlayerController : MonoBehaviour, IDamageable {
 				    CheckJump();
 					Movement();
 				    CheckGrounded();
+				    PlayerMovement();
 				    break;
 			    
 			    case PlayerState.IN_AIR:
@@ -95,14 +99,14 @@ public class PlayerController : MonoBehaviour, IDamageable {
 		{
 			if (rigidbody2D.velocity.x < -0.1f)
 			{
-				transform.localScale = new Vector3(1, transform.localScale.y, transform.localScale.z);
+				transform.localScale = new Vector3(-1, transform.localScale.y, transform.localScale.z);
 			}
 		}
 		if (horizontal > 0.1f)
 		{
 			if (rigidbody2D.velocity.x > 0.1f)
 			{
-				transform.localScale = new Vector3(-1, transform.localScale.y, transform.localScale.z);
+				transform.localScale = new Vector3(1, transform.localScale.y, transform.localScale.z);
 			}
 		}
 	}
@@ -119,8 +123,10 @@ public class PlayerController : MonoBehaviour, IDamageable {
 
 	private void PlayerMovement()
 	{
-		playerAnimator.SetBool("playRunning", (Mathf.Abs(rigidbody2D.velocity.x) > 0.2));
-		
+		playerAnimator.SetBool("isJumping", false);
+		playerAnimator.SetBool("isDead", false);
+		playerAnimator.SetBool("isRunning", (Mathf.Abs(rigidbody2D.velocity.x) > 0.2));
+		playerAnimator.SetBool("isIdle", (Mathf.Abs(rigidbody2D.velocity.x) < 0.2));
 	}
 	
 
@@ -138,8 +144,9 @@ public class PlayerController : MonoBehaviour, IDamageable {
 
     private void Jump()
     {
-        playerAnimator.SetBool("playJump", true);
-
+        playerAnimator.SetBool("isJumping", true);
+	    playerAnimator.SetBool("isRunning", false);
+	    playerAnimator.SetBool("isIdle", false);
         rigidbody2D.velocity = new Vector2(rigidbody2D.velocity.x, jumpSpeed);
 
     }
@@ -149,7 +156,15 @@ public class PlayerController : MonoBehaviour, IDamageable {
 		if (!canTakeDamage) return;
 		
 		health -=damage;
+		UpdateHealthColour();
 		if (health <= 0) { StartCoroutine(KillPlayer()); }
+	}
+
+	private void UpdateHealthColour()
+	{
+		float healthPercentage = health/maxHealth;
+		var rend = GetComponent<SpriteRenderer>();
+		rend.color = new Color(rend.color.r, (healthPercentage),  (healthPercentage));
 	}
 
 	private IEnumerator SetInvulnerable()
@@ -162,8 +177,12 @@ public class PlayerController : MonoBehaviour, IDamageable {
 
 	private void RespawnPlayer(Vector2 position)
 	{
+		health = maxHealth;
+		playerAnimator.SetBool("isIdle", true);
+		UpdateHealthColour();
 		transform.position = position;
 		playerState = PlayerState.GROUNDED;
+		canTakeDamage = true;
 		if (PlayerRespawn != null) PlayerRespawn(this, EventArgs.Empty);
 	}
 
@@ -173,6 +192,7 @@ public class PlayerController : MonoBehaviour, IDamageable {
 		
 		var spawn = SpawnPointManager.instance.GetFurthestSpawn(transform);
 		playerAnimator.SetBool("isDead", true);
+		playerAnimator.SetBool("isIdle", false);
 		playerState = PlayerState.DEAD;
 		canTakeDamage = false;
 		yield return new WaitForSeconds(3.0f);

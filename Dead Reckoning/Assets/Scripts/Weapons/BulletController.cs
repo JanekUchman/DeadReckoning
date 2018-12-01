@@ -67,12 +67,13 @@ public class BulletController : MonoBehaviour {
 				coll.GetComponent<IDamageable>().TakeDamage(bulletDamage);
 				BulletDeath();
 			}
+			else if (coll.gameObject.layer != Layers.bulletLayer)
+			{
+				Debug.Log(coll.tag);
+				BulletDeath();
+			}
 		}
-		else if (coll.gameObject.layer != Layers.bulletLayer)
-		{
-			Debug.Log(coll.tag);
-			BulletDeath();
-		}
+		
 	}
 
     protected virtual void BulletDeath()

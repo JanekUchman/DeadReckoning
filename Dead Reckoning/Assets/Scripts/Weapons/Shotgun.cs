@@ -64,6 +64,12 @@ public class Shotgun : MonoBehaviour {
 		
 		cameraController = camera.GetComponentInParent<CameraController>();
 		playerController.PlayerDeath += OnPlayerDeath;
+		playerController.PlayerRespawn += OnPlayerRespawn;
+	}
+
+	private void OnPlayerRespawn(object sender, EventArgs e)
+	{
+		canFire = true;
 	}
 
 	private void OnPlayerDeath(object sender, EventArgs eventArgs)
@@ -156,6 +162,8 @@ public class Shotgun : MonoBehaviour {
 
     private void SpawnAndFireBullets(float angle, int seed, Vector3 position)
     {
+	    //Only needed for multiplayer, so that the gun is pointing towards where it's shooting
+	    RotateSpriteToCursor(angle);
 	    //Random seed based on timestamp for getting shotgun spread
 		Random.InitState(seed);
 	    for (int i = 0; i < numberOfPellets; i++)
