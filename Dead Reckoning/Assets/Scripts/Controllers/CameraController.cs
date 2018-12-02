@@ -10,7 +10,7 @@ public class CameraController : MonoBehaviour {
 	private Vector3 originalCameraPosition = Vector3.zero;
 	private float yTemp = 0.0f;
 
-	[SerializeField] private GameObject playerToFollow;
+	public GameObject playerToFollow;
 	[SerializeField] private float characterYOffset = 2.0f;
 	[SerializeField] private float waitForYChange = 3.0f;
 	[SerializeField] private float maxRoomX = 0, maxRoomY = 0, minRoomX = 0, minRoomY = 0;
@@ -22,11 +22,17 @@ public class CameraController : MonoBehaviour {
 	// Use this for initialization
 	void Awake ()
 	{
+		UpdateCameraValues(playerToFollow);
+	}
+
+	public void UpdateCameraValues(GameObject go)
+	{
+		playerToFollow = go;
 		playerTransform = playerToFollow.transform;
 		playerController = playerToFollow.GetComponent<PlayerController>();
 		cameraTransform = transform;
 	}
-	
+
 	// Update is called once per frame
 
     void FixedUpdate () 

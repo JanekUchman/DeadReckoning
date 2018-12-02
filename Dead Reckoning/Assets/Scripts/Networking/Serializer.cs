@@ -67,7 +67,7 @@ public class Serializer : MonoBehaviour {
 
 	}
 
-	public static byte[] BinarySerialize(DataPacket packet)
+	public static byte[] BinarySerialize(object packet)
 	{
 		// To serialize the hashtable and its key/value pairs,  
 		// you must first open a stream for writing. 
@@ -92,16 +92,16 @@ public class Serializer : MonoBehaviour {
 		return stream.ToArray();
 	}
 
-	public static DataPacket BinaryDeserialize(byte[] data)
+	public static object BinaryDeserialize(byte[] data)
 	{
-		DataPacket packet = null;
+		object packet = null;
 		MemoryStream stream = new MemoryStream();
 		stream.Write(data, 0, data.Length);
 		stream.Seek(0, SeekOrigin.Begin);
 		BinaryFormatter formatter = new BinaryFormatter();
 		try
 		{
-			packet = (DataPacket)formatter.Deserialize(stream);
+			packet = formatter.Deserialize(stream);
 		}
 		catch (SerializationException e)
 		{

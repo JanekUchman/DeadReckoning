@@ -46,6 +46,8 @@ public class Shotgun : MonoBehaviour {
 	private Transform bulletSpawnPoint = null;
 	[HideInInspector] public bool isShooting  = false;
 
+	public bool playerGun = true;
+
     void Start()
     {
         SetUpShakeInstance();
@@ -90,8 +92,10 @@ public class Shotgun : MonoBehaviour {
 
 	void Update () {
 	    LerpGunToPlayer();
-		
+		if (!playerGun) return;
+
         var angleToMouse = GetAngleFromMouse();
+		
 	    RotateSpriteToCursor(angleToMouse);
 	    storeTime += Time.deltaTime;
 		if (Input.GetButton(fireButton) && storeTime > nextFire && canFire)

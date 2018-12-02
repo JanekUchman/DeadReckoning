@@ -4,9 +4,11 @@ using UnityEngine;
 
 
 
-public enum NetworkMessages
+public enum ServerMessages
 {
 	STARTGAME,
 	POSITION,
+	HEALTH,
 	FIREGUN
 }
+

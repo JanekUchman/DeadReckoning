@@ -348,11 +348,15 @@
               <e p="ClientTCP.cs" t="Include" />
             </e>
             <e p="DataPacket.cs" t="Include" />
+            <e p="EnemyPlayer.cs" t="Include" />
+            <e p="NetworkedPlayer.cs" t="Include" />
             <e p="NetworkMessages.cs" t="Include" />
+            <e p="SerializableVector.cs" t="Include" />
             <e p="Serializer.cs" t="Include" />
             <e p="Server" t="Include">
               <e p="ServerTCP.cs" t="Include" />
             </e>
+            <e p="ServerSettings.cs" t="Include" />
           </e>
           <e p="Player" t="Include">
             <e p="PlayerController.cs" t="Include" />

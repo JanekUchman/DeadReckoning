@@ -17,9 +17,20 @@ public class ClientTCP : MonoBehaviour
 	private NetworkStream stream;
 	private StreamReader reader;
 	private StreamWriter writer;
+	private int clientId;
+	private int numberOfClients;
+	private EnemyPlayer[] enemyPlayers;
+
+	public static ClientTCP instance;
+	
+	public delegate void ClientGotId(int id);
+
+	public static event ClientGotId ClientIdHandler;
 
 	private void Start()
 	{
+		if (instance != null) DestroyImmediate(gameObject);
+		else instance = this;
 		DontDestroyOnLoad(gameObject);
 	}
 	
@@ -57,6 +68,12 @@ public class ClientTCP : MonoBehaviour
 			throw;
 		}
 	}
+	
+	private IEnumerator WaitAFrame(Action callback)
+	{
+		yield return new WaitForEndOfFrame();
+		callback();
+	}
 
 	private void Update()
 	{
@@ -74,19 +91,65 @@ public class ClientTCP : MonoBehaviour
 		}
 	}
 
+	public void SendData(DataPacket.FromClient packet)
+	{
+		StreamWriter writer = null;
+		try
+		{
+
+			NetworkStream tcpStream = socket.GetStream();
+			if (tcpStream.CanWrite)
+			{
+				
+				Byte[] msg = Serializer.BinarySerialize(packet);
+				tcpStream.Write(msg, 0, msg.Length);
+				tcpStream.Flush();
+			}
+
+		}
+		catch (Exception e)
+		{
+			Debug.LogError(e);
+			throw;
+		}
+		finally
+		{
+			if (writer != null) writer.Close();
+		}
+	}
+
 	private void OnIncomingData(byte[] data)
 	{
-		Debug.Log(data);
-		DataPacket packet = Serializer.BinaryDeserialize(data);
+		DataPacket.FromServer packet = (DataPacket.FromServer)Serializer.BinaryDeserialize(data);
 		Debug.Log("Server: "+packet.packetType);
 
 		switch (packet.packetType)
 		{
-			case NetworkMessages.STARTGAME:
-				SceneManager.LoadScene(1);
+			case ServerMessages.STARTGAME:
+				StartGamePacket(packet);
 				break;
 			default:
 				break;
+		}
+	}
+
+	private void StartGamePacket(DataPacket.FromServer packet)
+	{
+		SceneManager.LoadScene(1);
+		clientId = packet.playerId;
+		numberOfClients = packet.numberOfClients;
+		SceneManager.sceneLoaded += OnSceneLoaded;
+		Debug.LogFormat("Client ID: {0}", clientId);
+	}
+
+	private void OnSceneLoaded(Scene arg0, LoadSceneMode loadSceneMode)
+	{
+		enemyPlayers = new EnemyPlayer[numberOfClients];
+
+		enemyPlayers = FindObjectsOfType<EnemyPlayer>();
+		for (int i = 0; i < numberOfClients; i++)
+		{
+			enemyPlayers[i].ProcessClientId(clientId, numberOfClients);
 		}
 	}
 }

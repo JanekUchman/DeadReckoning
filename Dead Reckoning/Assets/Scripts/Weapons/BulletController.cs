@@ -69,7 +69,6 @@ public class BulletController : MonoBehaviour {
 			}
 			else if (coll.gameObject.layer != Layers.bulletLayer)
 			{
-				Debug.Log(coll.tag);
 				BulletDeath();
 			}
 		}

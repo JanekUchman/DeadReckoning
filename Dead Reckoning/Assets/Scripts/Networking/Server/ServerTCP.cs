@@ -22,9 +22,15 @@ public class ServerTCP : MonoBehaviour
 	private TcpListener server;
 	private bool serverStarted;
 	private bool startGame;
+	private EnemyPlayer[] enemyPlayers;
+
+	public static ServerTCP instance; 
 	
 	private void Start()
 	{
+		if (instance != null) DestroyImmediate(gameObject);
+		else instance = this;
+		
 		DontDestroyOnLoad(gameObject);
 		clients = new List<ServerClient>();
 		disconnectList = new List<ServerClient>();
@@ -59,26 +65,47 @@ public class ServerTCP : MonoBehaviour
 				//Is there something to be read?
 				if (stream.DataAvailable)
 				{
-					//Read it from the client
-					StreamReader reader = new StreamReader(stream, true);
-					
-					string data = reader.ReadLine();
+					byte[] data = new byte[1024];
+					BinaryReader br = new BinaryReader(stream);
+					//reader.Read();
+					br.Read(data, 0, 1024);
 
 					if (data != null) OnIncomingData(client, data);
 				}
 			}
 		}
-
+		//Some unity functions can only be called from the main thread, so call them here
 		if (startGame)
 		{
 			SceneManager.LoadScene(1);
+			SceneManager.sceneLoaded += OnSceneLoaded;
+			
 			startGame = false;
 		}
 	}
 
-	private void OnIncomingData(ServerClient client, string data)
+	void OnSceneLoaded(Scene scene, LoadSceneMode mode)
 	{
-		Debug.Log(client.clientName + "has sent a message: " + data);
+		enemyPlayers = new EnemyPlayer[maxClients];
+		enemyPlayers = FindObjectsOfType<EnemyPlayer>();
+		foreach (var enemyPlayer in enemyPlayers)
+		{
+			enemyPlayer.ProcessClientId(0, maxClients);
+		}
+	}
+
+	private void OnIncomingData(ServerClient client, byte[] data)
+	{
+		DataPacket.FromClient packet = (DataPacket.FromClient)Serializer.BinaryDeserialize(data);
+		Debug.Log("Client: "+packet.packetType);
+		switch (packet.packetType)
+		{
+			case ServerMessages.POSITION:
+				DataPacket.RaiseUpdateClientPosition(packet.playerId, packet.positionVector);
+				break;
+			default:
+				break;
+		}
 	}
 
 	private bool IsConnected(TcpClient clientTcp)
@@ -118,20 +145,37 @@ public class ServerTCP : MonoBehaviour
 			return;
 		}
 		TcpListener listener = (TcpListener) asyncResult.AsyncState;
-		clients.Add(new ServerClient(listener.EndAcceptTcpClient(asyncResult)));
-		StartListening();
-		
-		if (clients.Count == maxClients) StartGame();
+		clients.Add(new ServerClient(listener.EndAcceptTcpClient(asyncResult), clients.Count+1));
+
+		if (clients.Count == maxClients)
+		{
+			StartGame();
+		}
+		else
+		{
+			StartListening();
+		}
 	}
 
 	private void StartGame()
 	{
-		var msg = new DataPacket(NetworkMessages.STARTGAME);
-		Broadcast(msg, clients);
+		
+		DataPacket.FromServer packet = new DataPacket.FromServer();
+		foreach (var client in clients)
+		{
+			//Let the clients know what their ID is and how many other clients to care about
+			packet = packet.CreateStartGamePacket(client.clientId, clients.Count+1);
+			SendPacket(packet, client);
+		}
 		startGame = true;
 	}
 
-	private void Broadcast(DataPacket data, List<ServerClient> _clients)
+	private void DeclineTcpClient(IAsyncResult asyncResult)
+	{
+		Debug.Log("Client tried to connect when max connected.");
+	}
+
+	private void Broadcast(DataPacket.FromServer packet, List<ServerClient> _clients)
 	{
 		
 		foreach (var client in _clients)
@@ -139,29 +183,11 @@ public class ServerTCP : MonoBehaviour
 			StreamWriter writer = null;
 			try
 			{
-//				Debug.Log("Message sent: " + data.message);
-//				//https://social.msdn.microsoft.com/Forums/en-US/ae005637-65fc-482f-bfee-267e85f709d1/how-to-send-an-object-through-network-using-tcp-sockets?forum=netfxnetcom
-//				XmlSerializer xmlSerializer = new XmlSerializer(typeof(DataPacket));
-//				;
-//				MemoryStream memStream = new MemoryStream();
-//				string buffer;
-//				writer = new StreamWriter(client.tcp.GetStream());
-//				XmlSerializerNamespaces xs = new XmlSerializerNamespaces();
-//				xs.Add("", "");
-//				xmlSerializer.Serialize(writer, data, xs);
-//
-//				buffer = Encoding.ASCII.GetString(memStream.GetBuffer());
-//				Char[] inputToBeSent = buffer.ToCharArray();
-//				
-//				
-//				writer.Write(inputToBeSent, 0, inputToBeSent.Length);
-//				writer.Flush();
 
 				NetworkStream tcpStream = client.tcp.GetStream();
 				if (tcpStream.CanWrite)
 				{
-					
-					Byte[] msg = Serializer.BinarySerialize(data);
+					Byte[] msg = Serializer.BinarySerialize(packet);
 					Debug.Log(msg);
 					//Byte[] inputToBeSent = Encoding.ASCII.GetBytes(msg.ToCharArray());
 					tcpStream.Write(msg, 0, msg.Length);
@@ -180,6 +206,35 @@ public class ServerTCP : MonoBehaviour
 			}
 		}
 	}
+
+	private void SendPacket(DataPacket.FromServer packet, ServerClient client)
+	{
+		StreamWriter writer = null;
+		try
+		{
+
+			NetworkStream tcpStream = client.tcp.GetStream();
+			if (tcpStream.CanWrite)
+			{
+				//Let the clients know what their ID is and how many other clients to care about
+				Byte[] msg = Serializer.BinarySerialize(packet);
+				Debug.Log(msg);
+				//Byte[] inputToBeSent = Encoding.ASCII.GetBytes(msg.ToCharArray());
+				tcpStream.Write(msg, 0, msg.Length);
+				tcpStream.Flush();
+			}
+
+		}
+		catch (Exception e)
+		{
+			Debug.LogError(e);
+			throw;
+		}
+		finally
+		{
+			if (writer != null) writer.Close();
+		}
+	}
 }
 
 //A definition of who's connected to the server
@@ -187,11 +242,11 @@ public class ServerTCP : MonoBehaviour
 public class ServerClient
 {
 	public TcpClient tcp;
-	public string clientName;
+	public int clientId;
 
-	public ServerClient(TcpClient clientSocket)
+	public ServerClient(TcpClient clientSocket, int _clientId)
 	{
-		clientName = "guest";
+		clientId = _clientId;
 		tcp = clientSocket;
 	}
 

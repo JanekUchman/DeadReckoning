@@ -34,8 +34,6 @@ public class PlayerController : MonoBehaviour, IDamageable {
 	private bool canAirJump = true;
 
 	[HideInInspector] public float horizontal = 0;
-	
-
     [Header("Movement variables")]
 	[SerializeField] private float maxSpeed = 10;
 	[SerializeField] private float acceleration = 50;
@@ -198,4 +196,6 @@ public class PlayerController : MonoBehaviour, IDamageable {
 		yield return new WaitForSeconds(3.0f);
 		RespawnPlayer(spawn.position);
 	}
+
+
 }
