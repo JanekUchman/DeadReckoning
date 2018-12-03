@@ -21,7 +21,7 @@ public class NetworkedPlayer : MonoBehaviour {
 
 	private void ClientSideUpdates()
 	{
-		StartCoroutine(ReportPosition(ServerSettings.instance.tickRate));
+		StartCoroutine(ReportPosition(ServerSettings.instance.timeBetweenUpdates));
 	}
 
 	// Update is called once per frame

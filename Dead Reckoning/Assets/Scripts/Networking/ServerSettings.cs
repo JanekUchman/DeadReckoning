@@ -14,7 +14,7 @@ public class ServerSettings : MonoBehaviour
 	}
 	
 	// Use this for initialization
-	void Start ()
+	void Awake ()
 	{
 		if (instance != null) DestroyImmediate(this);
 		else instance = this;

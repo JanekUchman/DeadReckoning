@@ -39,7 +39,7 @@ public class EnemyPlayer : MonoBehaviour
 
 	public void ProcessClientId(int id, int numberOfClients)
 	{
-		if (id > numberOfClients) DestroyImmediate(gameObject);
+		if (id > numberOfClients) DestroyImmediate(gameObject.transform.parent);
 		//This isn't our player
 		if (id != characterNumber)
 		{
