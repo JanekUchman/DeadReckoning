@@ -107,7 +107,10 @@ public class Serializer : MonoBehaviour {
 		{
 			Debug.Log("Deserialization Failed : " + e.Message);
 		}
-		stream.Close();
+		finally
+		{
+			stream.Close();
+		}
 		return packet;
 	}
 	

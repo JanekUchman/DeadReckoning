@@ -113,6 +113,63 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1001 &33625760
+Prefab:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 4709361861873950, guid: 67c968acb77338c4c943f9b23ffa6794, type: 2}
+      propertyPath: m_LocalPosition.x
+      value: 4.68276
+      objectReference: {fileID: 0}
+    - target: {fileID: 4709361861873950, guid: 67c968acb77338c4c943f9b23ffa6794, type: 2}
+      propertyPath: m_LocalPosition.y
+      value: -2.3484387
+      objectReference: {fileID: 0}
+    - target: {fileID: 4709361861873950, guid: 67c968acb77338c4c943f9b23ffa6794, type: 2}
+      propertyPath: m_LocalPosition.z
+      value: 0.12319881
+      objectReference: {fileID: 0}
+    - target: {fileID: 4709361861873950, guid: 67c968acb77338c4c943f9b23ffa6794, type: 2}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4709361861873950, guid: 67c968acb77338c4c943f9b23ffa6794, type: 2}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4709361861873950, guid: 67c968acb77338c4c943f9b23ffa6794, type: 2}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4709361861873950, guid: 67c968acb77338c4c943f9b23ffa6794, type: 2}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4709361861873950, guid: 67c968acb77338c4c943f9b23ffa6794, type: 2}
+      propertyPath: m_RootOrder
+      value: 7
+      objectReference: {fileID: 0}
+    - target: {fileID: 114257406920606138, guid: 67c968acb77338c4c943f9b23ffa6794,
+        type: 2}
+      propertyPath: tickRate
+      value: 60
+      objectReference: {fileID: 0}
+    - target: {fileID: 114257406920606138, guid: 67c968acb77338c4c943f9b23ffa6794,
+        type: 2}
+      propertyPath: clientTickRate
+      value: 60
+      objectReference: {fileID: 0}
+    - target: {fileID: 114257406920606138, guid: 67c968acb77338c4c943f9b23ffa6794,
+        type: 2}
+      propertyPath: serverTickRate
+      value: 60
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 67c968acb77338c4c943f9b23ffa6794, type: 2}
+  m_IsPrefabAsset: 0
 --- !u!1 &279817911
 GameObject:
   m_ObjectHideFlags: 0
@@ -457,6 +514,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   maxClients: 2
   port: 6321
+  hostPlayer: {fileID: 0}
 --- !u!4 &400842604
 Transform:
   m_ObjectHideFlags: 0

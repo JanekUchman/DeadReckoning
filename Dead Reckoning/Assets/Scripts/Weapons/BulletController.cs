@@ -15,14 +15,12 @@ public class BulletController : MonoBehaviour {
     [SerializeField] protected float speedDecreasePerSecond = 500.0f; 
     [Tooltip("Don't set speed decrease multiplied by the time from fire to greater than initial bullet speed")]
     [SerializeField] protected float timeFromFireTillDelete = 1.0f;
-
-	private string friendlyTag = "Player";
 	
     protected float speedDecreasePerTick = 0.0f;
     protected bool bulletFired = false;
     protected Rigidbody2D rigidBody = null;
     protected Animator anim = null;
-
+	private int id;
 	protected void Awake()
 	{
 		if (bulletSpeed < (speedDecreasePerSecond * timeFromFireTillDelete)) Debug.LogWarning("Bullets will go backwards.");
@@ -37,9 +35,9 @@ public class BulletController : MonoBehaviour {
         }
     }
 
-    public void FireBullet(float angle, string firedTag, CameraShakeInstance gunShakeInstance)
+    public void FireBullet(float angle, CameraShakeInstance gunShakeInstance, int _id)
     {
-	    friendlyTag = firedTag;
+	    id = _id;
         speedDecreasePerTick = speedDecreasePerSecond / 60;
         anim = GetComponent<Animator>();
         rigidBody = gameObject.GetComponent<Rigidbody2D>();
@@ -60,8 +58,9 @@ public class BulletController : MonoBehaviour {
 
     private void OnTriggerEnter2D(Collider2D coll)
 	{
-		if (!coll.gameObject.CompareTag(friendlyTag))
+		if (coll.GetComponent<EnemyPlayer>() && id != coll.GetComponent<EnemyPlayer>().characterNumber)
 		{
+			
 			if (coll.GetComponent<IDamageable>() != null)
 			{
 				coll.GetComponent<IDamageable>().TakeDamage(bulletDamage);

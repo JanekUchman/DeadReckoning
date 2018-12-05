@@ -65,8 +65,11 @@ public class Shotgun : MonoBehaviour {
 		playerController = gunOwner.GetComponent<PlayerController>();
 		
 		cameraController = camera.GetComponentInParent<CameraController>();
-		playerController.PlayerDeath += OnPlayerDeath;
-		playerController.PlayerRespawn += OnPlayerRespawn;
+		if (playerGun)
+		{
+			playerController.PlayerDeath += OnPlayerDeath;
+			playerController.PlayerRespawn += OnPlayerRespawn;
+		}
 	}
 
 	private void OnPlayerRespawn(object sender, EventArgs e)
@@ -132,6 +135,7 @@ public class Shotgun : MonoBehaviour {
 
     private void RotateSpriteToCursor(float angleToMouse)
     {
+	    if (!canFire) return;
         transform.rotation = Quaternion.Euler(new Vector3(0, 0, angleToMouse));
         if (angleToMouse < 90 && angleToMouse > -90 && flippedLeft)
         {
@@ -147,9 +151,26 @@ public class Shotgun : MonoBehaviour {
 
     private void FireGun(float angleToMouse)
     {
-        isShooting = true;
+	    int seed = Random.Range(0, 300);
+
+		if (ServerSettings.instance.playerId != 0)
+	    {
+		    var packet = new DataPacket.FromClient();
+		    packet = packet.CreateFireGunPacket(angleToMouse,seed , bulletSpawnPoint.position,
+			    ServerSettings.instance.playerId);
+		    ClientTCP.instance.SendData(packet);
+	    }
+	    else
+	    {
+			var packet = new DataPacket.FromServer();
+		    packet = packet.CreateFireGunPacket(angleToMouse, seed, bulletSpawnPoint.position,
+			    ServerSettings.instance.playerId);
+			ServerTCP.instance.Broadcast(packet);
+		}
+
+	    isShooting = true;
 	    KnockBack();
-	    SpawnAndFireBullets(angleToMouse, 0, bulletSpawnPoint.position);
+	    SpawnAndFireBullets(angleToMouse, seed, bulletSpawnPoint.position, ServerSettings.instance.playerId);
         cameraController.MoveBasedOnAngle(angleToMouse);
         nextFire = fireDelay;
         storeTime = 0.0f;
@@ -164,7 +185,7 @@ public class Shotgun : MonoBehaviour {
 	   
     }
 
-    private void SpawnAndFireBullets(float angle, int seed, Vector3 position)
+	public void SpawnAndFireBullets(float angle, int seed, Vector3 position, int _id)
     {
 	    //Only needed for multiplayer, so that the gun is pointing towards where it's shooting
 	    RotateSpriteToCursor(angle);
@@ -179,7 +200,7 @@ public class Shotgun : MonoBehaviour {
 			    Quaternion.Euler(new Vector3(0, 0, transform.eulerAngles.z + inaccuracyModifier))) as GameObject;
 
 		    var bulletController = newProjectile.GetComponent<BulletController>();
-		    bulletController.FireBullet((angle + inaccuracyModifier), gameObject.tag, shakeInstance);
+		    bulletController.FireBullet((angle + inaccuracyModifier),  shakeInstance, _id);
 	    }
     }
 

@@ -10,13 +10,25 @@ using UnityEngine;
 [Serializable]
 public class DataPacket
 {
-	public delegate void UpdateClientPosition(int clientId, Vector3 position);
-
+	public delegate void UpdateClientPosition(Vector3 position, int clientId );
 	public static event UpdateClientPosition UpdateClientPositionHandler;
-
-	public static void RaiseUpdateClientPosition(int id, SerializableVector pos)
+	public static void RaiseUpdateClientPosition( SerializableVector pos, int id)
 	{
-		if (UpdateClientPositionHandler != null) UpdateClientPositionHandler.Invoke(id, pos);
+		if (UpdateClientPositionHandler != null) UpdateClientPositionHandler.Invoke(pos, id);
+	}
+
+	public delegate void ClientFiredGun(float _angle, int _seed, Vector3 _gunPosition, int clientId );
+	public static event ClientFiredGun FiredGunHandler;
+	public static void RaiseClientFiredGun(float _angle, int _seed, Vector3 _gunPosition, int clientId)
+	{
+		if (FiredGunHandler!= null) FiredGunHandler.Invoke( _angle, _seed, _gunPosition, clientId);
+	}
+
+	public delegate void ClientHit(float _damage, int clientId);
+	public static event ClientHit ClientHitHandler;
+	public static void RaiseClientHit(float damage, int clientId)
+	{
+		if (ClientHitHandler!= null) ClientHitHandler.Invoke(damage, clientId);
 	}
 	//Messages sent from the client to the server
 	//Hit detection is client side
@@ -30,7 +42,14 @@ public class DataPacket
 		public SerializableVector positionVector;
 		public int playerId;
 		public ServerMessages packetType;
-		
+
+		public float angle;
+		public int seed;
+		public SerializableVector gunPosition;
+
+		public float damage;
+		public int damageId;
+
 		public FromClient(){}
 		
 		public DataPacket.FromClient CreatePositionPacket(SerializableVector _positionVector, int _playerId)
@@ -40,8 +59,26 @@ public class DataPacket
 			playerId = _playerId;
 			return this;
 		}
-		
-		
+
+		public DataPacket.FromClient CreateHealthPacket(float _damage, int _playerId)
+		{
+			packetType = ServerMessages.HEALTH;
+			damage = _damage;
+			damageId = _playerId;
+			return this;
+		}
+
+		public DataPacket.FromClient CreateFireGunPacket(float _angle, int _seed, SerializableVector _gunPosition, int _playerId)
+		{
+			packetType = ServerMessages.FIREGUN;
+			gunPosition = _gunPosition;
+			angle = _angle;
+			seed = _seed;
+			playerId = _playerId;
+			return this;
+		}
+
+
 	}
 	//Messages sent from the server to the client
 	//position update - updates all clients on the current position of other clients and server
@@ -56,7 +93,15 @@ public class DataPacket
 		public int playerId;
 		public int numberOfClients;
 		public ServerMessages packetType;
-		
+
+		public float angle;
+		public int seed;
+		public SerializableVector gunPosition;
+		public int shotId;
+
+		public float damage;
+		public int damageId;
+
 		//XML needs a paramaterless constructor
 		public FromServer(){}
 
@@ -68,7 +113,25 @@ public class DataPacket
 			playerId = _playerId;
 			return this;
 		}
-		
+
+		public DataPacket.FromServer CreateFireGunPacket(float _angle, int _seed, SerializableVector _gunPosition, int _playerId)
+		{
+			packetType = ServerMessages.FIREGUN;
+			gunPosition = _gunPosition;
+			angle = _angle;
+			seed = _seed;
+			shotId = _playerId;
+			return this;
+		}
+
+		public DataPacket.FromServer CreateHealthPacket(float _damage, int _playerId)
+		{
+			packetType = ServerMessages.HEALTH;
+			damage = _damage;
+			damageId = _playerId;
+			return this;
+		}
+
 		public DataPacket.FromServer CreateStartGamePacket(int _playerId, int _numberOfClients)
 		{
 			packetType = ServerMessages.STARTGAME;

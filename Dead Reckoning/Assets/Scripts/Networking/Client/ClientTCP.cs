@@ -17,8 +17,7 @@ public class ClientTCP : MonoBehaviour
 	private NetworkStream stream;
 	private StreamReader reader;
 	private StreamWriter writer;
-	private int clientId;
-	private int numberOfClients;
+	public GameObject clientPlayer;
 	private EnemyPlayer[] enemyPlayers;
 
 	public static ClientTCP instance;
@@ -121,12 +120,25 @@ public class ClientTCP : MonoBehaviour
 	private void OnIncomingData(byte[] data)
 	{
 		DataPacket.FromServer packet = (DataPacket.FromServer)Serializer.BinaryDeserialize(data);
+		if (packet == null) return;
 		Debug.Log("Server: "+packet.packetType);
 
 		switch (packet.packetType)
 		{
 			case ServerMessages.STARTGAME:
 				StartGamePacket(packet);
+				break;
+			case ServerMessages.POSITION:
+				for (int i = 0; i < ServerSettings.instance.numberOfClients; i++)
+				{
+					DataPacket.RaiseUpdateClientPosition(packet.positionVectors[i], i);
+				}
+				break;
+			case ServerMessages.FIREGUN:
+				DataPacket.RaiseClientFiredGun(packet.angle, packet.seed, packet.gunPosition, packet.shotId);
+				break;
+			case ServerMessages.HEALTH:
+				DataPacket.RaiseClientHit(packet.damage, packet.damageId);
 				break;
 			default:
 				break;
@@ -136,20 +148,17 @@ public class ClientTCP : MonoBehaviour
 	private void StartGamePacket(DataPacket.FromServer packet)
 	{
 		SceneManager.LoadScene(1);
-		clientId = packet.playerId;
-		numberOfClients = packet.numberOfClients;
+		ServerSettings.instance.numberOfClients = packet.numberOfClients;
+		ServerSettings.instance.playerId = packet.playerId;
 		SceneManager.sceneLoaded += OnSceneLoaded;
-		Debug.LogFormat("Client ID: {0}", clientId);
+		Debug.LogFormat("Client ID: {0}", ServerSettings.instance.playerId);
 	}
 
 	private void OnSceneLoaded(Scene arg0, LoadSceneMode loadSceneMode)
 	{
-		enemyPlayers = new EnemyPlayer[numberOfClients];
+		enemyPlayers = new EnemyPlayer[ServerSettings.instance.numberOfClients];
 
 		enemyPlayers = FindObjectsOfType<EnemyPlayer>();
-		for (int i = 0; i < numberOfClients; i++)
-		{
-			enemyPlayers[i].ProcessClientId(clientId, numberOfClients);
-		}
+		
 	}
 }

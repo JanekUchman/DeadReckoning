@@ -8,6 +8,7 @@ using System.Text;
 using System.Xml.Serialization;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using Vector3 = UnityEngine.Vector3;
 
 // https://www.youtube.com/watch?v=7_BCbzRMi2w 
 
@@ -23,14 +24,18 @@ public class ServerTCP : MonoBehaviour
 	private bool serverStarted;
 	private bool startGame;
 	private EnemyPlayer[] enemyPlayers;
-
-	public static ServerTCP instance; 
+	private DataPacket.FromServer serverPacket;
+	
+	public static ServerTCP instance;
+	public GameObject hostPlayer;
 	
 	private void Start()
 	{
 		if (instance != null) DestroyImmediate(gameObject);
 		else instance = this;
 		
+		serverPacket = new DataPacket.FromServer();
+
 		DontDestroyOnLoad(gameObject);
 		clients = new List<ServerClient>();
 		disconnectList = new List<ServerClient>();
@@ -77,6 +82,8 @@ public class ServerTCP : MonoBehaviour
 		//Some unity functions can only be called from the main thread, so call them here
 		if (startGame)
 		{
+			ServerSettings.instance.numberOfClients = clients.Count+1;
+			ServerSettings.instance.playerId = 0;
 			SceneManager.LoadScene(1);
 			SceneManager.sceneLoaded += OnSceneLoaded;
 			
@@ -84,24 +91,57 @@ public class ServerTCP : MonoBehaviour
 		}
 	}
 
+	private IEnumerator UpdateClients(float timeBetweenPackets)
+	{
+		while (true)
+		{
+			yield return new WaitForSeconds(timeBetweenPackets);
+			SerializableVector[] pos = new SerializableVector[clients.Count+1];
+			pos[0] = hostPlayer.transform.position;
+			foreach (var serverClient in clients)
+			{
+				pos[serverClient.clientId] = serverClient.position;
+			}
+
+			serverPacket = serverPacket.CreatePositionPacket(pos, 0);
+			Broadcast(serverPacket);
+		}
+	}
+
 	void OnSceneLoaded(Scene scene, LoadSceneMode mode)
 	{
 		enemyPlayers = new EnemyPlayer[maxClients];
 		enemyPlayers = FindObjectsOfType<EnemyPlayer>();
-		foreach (var enemyPlayer in enemyPlayers)
-		{
-			enemyPlayer.ProcessClientId(0, maxClients);
-		}
+		StartCoroutine(UpdateClients(ServerSettings.instance.TimeBetweenUpdatesServer));
 	}
 
 	private void OnIncomingData(ServerClient client, byte[] data)
 	{
 		DataPacket.FromClient packet = (DataPacket.FromClient)Serializer.BinaryDeserialize(data);
+		if (packet == null) return;
 		Debug.Log("Client: "+packet.packetType);
 		switch (packet.packetType)
 		{
 			case ServerMessages.POSITION:
-				DataPacket.RaiseUpdateClientPosition(packet.playerId, packet.positionVector);
+				DataPacket.RaiseUpdateClientPosition( packet.positionVector, packet.playerId);
+				foreach (var serverClient in clients)
+				{
+					if (serverClient.clientId == packet.playerId)
+					{
+						serverClient.position = packet.positionVector;
+					}
+				}
+				break;
+			case ServerMessages.FIREGUN:
+				DataPacket.RaiseClientFiredGun(packet.angle, packet.seed, packet.gunPosition, packet.playerId);
+				serverPacket =
+					serverPacket.CreateFireGunPacket(packet.angle, packet.seed, packet.gunPosition, packet.playerId);
+				Broadcast(serverPacket);
+				break;
+			case ServerMessages.HEALTH:
+				DataPacket.RaiseClientHit(packet.damage, packet.damageId);
+				serverPacket = serverPacket.CreateHealthPacket(packet.damage, packet.damageId);
+				Broadcast(serverPacket);
 				break;
 			default:
 				break;
@@ -145,8 +185,10 @@ public class ServerTCP : MonoBehaviour
 			return;
 		}
 		TcpListener listener = (TcpListener) asyncResult.AsyncState;
+		//Add one since the client hasn't been added yet
 		clients.Add(new ServerClient(listener.EndAcceptTcpClient(asyncResult), clients.Count+1));
-
+		Debug.LogFormat("Client: {0} connected.", clients.Count);
+		
 		if (clients.Count == maxClients)
 		{
 			StartGame();
@@ -159,14 +201,9 @@ public class ServerTCP : MonoBehaviour
 
 	private void StartGame()
 	{
-		
-		DataPacket.FromServer packet = new DataPacket.FromServer();
-		foreach (var client in clients)
-		{
-			//Let the clients know what their ID is and how many other clients to care about
-			packet = packet.CreateStartGamePacket(client.clientId, clients.Count+1);
-			SendPacket(packet, client);
-		}
+		//Add one since the houst counts as a client
+		serverPacket = serverPacket.CreateStartGamePacket(0, clients.Count+1);
+		Broadcast(serverPacket);
 		startGame = true;
 	}
 
@@ -175,11 +212,12 @@ public class ServerTCP : MonoBehaviour
 		Debug.Log("Client tried to connect when max connected.");
 	}
 
-	private void Broadcast(DataPacket.FromServer packet, List<ServerClient> _clients)
+	public void Broadcast(DataPacket.FromServer packet)
 	{
 		
-		foreach (var client in _clients)
+		foreach (var client in clients)
 		{
+			packet.playerId = client.clientId;
 			StreamWriter writer = null;
 			try
 			{
@@ -235,19 +273,23 @@ public class ServerTCP : MonoBehaviour
 			if (writer != null) writer.Close();
 		}
 	}
-}
 
-//A definition of who's connected to the server
-//Only accessible by the server
-public class ServerClient
-{
-	public TcpClient tcp;
-	public int clientId;
-
-	public ServerClient(TcpClient clientSocket, int _clientId)
+	//A definition of who's connected to the server
+	//Only accessible by the server
+	private class ServerClient
 	{
-		clientId = _clientId;
-		tcp = clientSocket;
+		public TcpClient tcp;
+		public int clientId;
+		public Vector3 position;
+
+		public ServerClient(TcpClient clientSocket, int _clientId)
+		{
+			clientId = _clientId;
+			tcp = clientSocket;
+			position = Vector3.zero;
+		}
+
 	}
 
 }
+

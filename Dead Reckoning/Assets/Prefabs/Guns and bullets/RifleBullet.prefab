@@ -92,7 +92,7 @@ MonoBehaviour:
   sleepOnHitTimer: 20
   bulletSpeed: 600
   speedVariation: 100
-  bulletDamage: 250
+  bulletDamage: 75
   speedDecreasePerSecond: 599.7
   timeFromFireTillDelete: 1
 --- !u!212 &212382009244343816
