@@ -156,21 +156,21 @@ public class Shotgun : MonoBehaviour {
 		if (ServerSettings.instance.playerId != 0)
 	    {
 		    var packet = new DataPacket.FromClient();
-		    packet = packet.CreateFireGunPacket(angleToMouse,seed , bulletSpawnPoint.position,
+		    packet = DataPacket.GetFromClientHealthPacket(angleToMouse,seed , bulletSpawnPoint.position,
 			    ServerSettings.instance.playerId);
-		    ClientTCP.instance.SendData(packet);
+		   StartCoroutine(ClientTCP.instance.SendData(packet));
 	    }
 	    else
 	    {
 			var packet = new DataPacket.FromServer();
-		    packet = packet.CreateFireGunPacket(angleToMouse, seed, bulletSpawnPoint.position,
+		    packet = DataPacket.GetFromServerPositionPacket(angleToMouse, seed, bulletSpawnPoint.position,
 			    ServerSettings.instance.playerId);
-			ServerTCP.instance.Broadcast(packet);
+			StartCoroutine(ServerTCP.instance.Broadcast(packet));
 		}
 
 	    isShooting = true;
 	    KnockBack();
-	    SpawnAndFireBullets(angleToMouse, seed, bulletSpawnPoint.position, ServerSettings.instance.playerId);
+	    SpawnAndFireBullets(angleToMouse, seed, bulletSpawnPoint.position, ServerSettings.instance.playerId, true);
         cameraController.MoveBasedOnAngle(angleToMouse);
         nextFire = fireDelay;
         storeTime = 0.0f;
@@ -185,8 +185,9 @@ public class Shotgun : MonoBehaviour {
 	   
     }
 
-	public void SpawnAndFireBullets(float angle, int seed, Vector3 position, int _id)
-    {
+	public void SpawnAndFireBullets(float angle, int seed, Vector3 position, int _id, bool clientFire)
+	{
+		
 	    //Only needed for multiplayer, so that the gun is pointing towards where it's shooting
 	    RotateSpriteToCursor(angle);
 	    //Random seed based on timestamp for getting shotgun spread
@@ -200,7 +201,7 @@ public class Shotgun : MonoBehaviour {
 			    Quaternion.Euler(new Vector3(0, 0, transform.eulerAngles.z + inaccuracyModifier))) as GameObject;
 
 		    var bulletController = newProjectile.GetComponent<BulletController>();
-		    bulletController.FireBullet((angle + inaccuracyModifier),  shakeInstance, _id);
+		    bulletController.FireBullet((angle + inaccuracyModifier),  shakeInstance, _id, clientFire);
 	    }
     }
 

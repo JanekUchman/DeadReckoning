@@ -167,6 +167,11 @@ Prefab:
       propertyPath: serverTickRate
       value: 60
       objectReference: {fileID: 0}
+    - target: {fileID: 114257406920606138, guid: 67c968acb77338c4c943f9b23ffa6794,
+        type: 2}
+      propertyPath: speed
+      value: 7
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 67c968acb77338c4c943f9b23ffa6794, type: 2}
   m_IsPrefabAsset: 0
@@ -995,6 +1000,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 458387df79c2b08408004371b24c1d99, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  clientPlayer: {fileID: 0}
 --- !u!4 &970462443
 Transform:
   m_ObjectHideFlags: 0

@@ -73,7 +73,7 @@ public class Serializer : MonoBehaviour {
 		// you must first open a stream for writing. 
 		// In this case, use a file stream.
 		MemoryStream stream = new MemoryStream();
-
+		stream.Position = 0;
 		// Construct a BinaryFormatter and use it to serialize the data to the stream.
 		BinaryFormatter formatter = new BinaryFormatter();
 		try 
@@ -96,8 +96,9 @@ public class Serializer : MonoBehaviour {
 	{
 		object packet = null;
 		MemoryStream stream = new MemoryStream();
-		stream.Write(data, 0, data.Length);
+		stream.Write(data, 0, DataPacket.byteSize);
 		stream.Seek(0, SeekOrigin.Begin);
+		stream.Position = 0;
 		BinaryFormatter formatter = new BinaryFormatter();
 		try
 		{

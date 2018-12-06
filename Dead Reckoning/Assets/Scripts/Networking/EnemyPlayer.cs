@@ -5,7 +5,17 @@ using UnityEngine;
 
 public class EnemyPlayer : MonoBehaviour, IDamageable
 {
+	private enum AnimationState
+	{
+		MOVING,
+		IDLE,
+		JUMPING,
+		DEAD
+	};
+
+	private AnimationState animationState;
 	private Animator playerAnimator;
+	private Renderer rend;
 
 	private Rigidbody2D rigidbody2D;
 	
@@ -17,15 +27,23 @@ public class EnemyPlayer : MonoBehaviour, IDamageable
 	private float maxHealth;
 	private float health = 500;
 	private float damageOverTime = 0;
-
 	private bool damaged;
+	private bool flippedLeft;
+	private bool positionUpdateReceived;
+	private Vector3 targetPosition;
+	private Vector3 oldestPacketPosition;
+	private Vector3 latestReceivedPacketPosition;
 
-	private bool canTakeDamage = true;
+
 	// Use this for initialization
 	void Start ()
 	{
 		playerAnimator = GetComponent<Animator>();
 		rigidbody2D = GetComponent<Rigidbody2D>();
+		rend = GetComponent<Renderer>();
+		oldestPacketPosition = transform.position;
+		targetPosition = transform.position;
+		latestReceivedPacketPosition = transform.position;
 	}
 
 	private void OnEnable()
@@ -33,7 +51,7 @@ public class EnemyPlayer : MonoBehaviour, IDamageable
 		maxHealth = health;
 		DataPacket.UpdateClientPositionHandler += UpdatePosition;
 		DataPacket.FiredGunHandler += FireGun;
-		DataPacket.ClientHitHandler += RecievePacketDamage;
+		DataPacket.ClientHitHandler += ReceivePacketDamage;
 
 		if (characterNumber >= ServerSettings.instance.numberOfClients)
 		{
@@ -45,6 +63,7 @@ public class EnemyPlayer : MonoBehaviour, IDamageable
 		else if (ServerSettings.instance.playerId != characterNumber)
 		{
 			shotgun.playerGun = false;
+			GetComponent<Rigidbody2D>().gravityScale = 0;
 			DestroyImmediate(GetComponent<PlayerController>());
 			DestroyImmediate(GetComponent<NetworkedPlayer>());
 			return;
@@ -62,41 +81,70 @@ public class EnemyPlayer : MonoBehaviour, IDamageable
 	{
 		DataPacket.UpdateClientPositionHandler -= UpdatePosition;
 		DataPacket.FiredGunHandler -= FireGun;
-		DataPacket.ClientHitHandler -= RecievePacketDamage;
+		DataPacket.ClientHitHandler -= ReceivePacketDamage;
 	}
 
 	// Update is called once per frame
 	void Update () {
+		GetAnimationState();
 		ControlAnimation();
+		var step = ServerSettings.instance.speed * Time.deltaTime;
+		
+		transform.position = Vector2.MoveTowards(transform.position, targetPosition, step);
+		
 	}
 
-	
-	private void ControlAnimation()
+	private IEnumerator PacketTimer()
 	{
-		if (canTakeDamage)
+		while (true)
 		{
-			playerAnimator.SetBool("isJumping", false);
-			playerAnimator.SetBool("isDead", false);
-			playerAnimator.SetBool("isRunning", (Mathf.Abs(rigidbody2D.velocity.x) > 0.2));
-			playerAnimator.SetBool("isIdle", (Mathf.Abs(rigidbody2D.velocity.x) < 0.2));
+			yield return new WaitForSeconds(ServerSettings.instance.TimeBetweenUpdatesClient);
+			MakePrediction();
 		}
 	}
 
-	private void UpdatePosition( Vector3 position, int clientId)
+	private void UpdatePosition( Vector3 position, bool posUpdated, int clientId)
 	{
 		if (clientId != characterNumber) return;
-		gameObject.transform.position = position;
+		positionUpdateReceived = posUpdated;
+		if (!posUpdated)
+		{
+			MakePrediction();
+		}
+		else
+		{
+			StopCoroutine(PacketTimer());
+			StartCoroutine(PacketTimer());
+			oldestPacketPosition = latestReceivedPacketPosition;
+			latestReceivedPacketPosition = position;
+			targetPosition = position;
+			//If there's too big a difference just move the player
+			if (Vector2.Distance(position, transform.position) > 5)
+			{
+				transform.position = position;
+				oldestPacketPosition = position;
+			}
+		}
+		
+	}
+
+	private void MakePrediction()
+	{
+		var direction = (latestReceivedPacketPosition - oldestPacketPosition);
+		//Normalize it just in case there's a large time between packets and the size gets too big
+		//targetPosition = transform.position += direction.normalized;
+		targetPosition = transform.position + direction;
 	}
 
 	private void FireGun(float angle, int seed, Vector3 gunPosition, int clientId)
 	{
 		if (clientId != characterNumber) return;
-		shotgun.SpawnAndFireBullets(angle, seed, gunPosition, clientId);
+		shotgun.SpawnAndFireBullets(angle, seed, gunPosition, clientId, false);
 	}
 
-	private void RecievePacketDamage(float damage, int clientId)
+	private void ReceivePacketDamage(float damage, int clientId, int reportedPlayerId)
 	{
-		if (clientId != characterNumber || !canTakeDamage) return;
+		if (clientId != characterNumber || reportedPlayerId == ServerSettings.instance.playerId) return;
 		health -= damage;
 		UpdateHealthColour();
 		if (health <= 0)
@@ -108,9 +156,7 @@ public class EnemyPlayer : MonoBehaviour, IDamageable
 	{
 		playerAnimator.SetBool("isDead", true);
 		playerAnimator.SetBool("isIdle", false);
-		canTakeDamage = false;
 		yield return new WaitForSeconds(3.0f);
-		canTakeDamage = true;
 		health = maxHealth;
 		playerAnimator.SetBool("isIdle", true);
 		UpdateHealthColour();
@@ -125,15 +171,16 @@ public class EnemyPlayer : MonoBehaviour, IDamageable
 
 	public void TakeDamage(float damage)
 	{
-		//Problems with the client reporting damage taken, then the host repeating that
-		//A temporary fix is to just check on the host
-		if (ServerSettings.instance.playerId != 0) return;
-		RecievePacketDamage(damage, characterNumber);
-		damageOverTime += damage;
+		//ReceivePacketDamage(damage, characterNumber);
 		if (!damaged)
 		{
+			damageOverTime = damage;
 			StartCoroutine(WaitForDamagePacket());
 			damaged = true;
+		}
+		else
+		{
+			damageOverTime += damage;
 		}
 	}
 
@@ -141,20 +188,81 @@ public class EnemyPlayer : MonoBehaviour, IDamageable
 	private IEnumerator WaitForDamagePacket()
 	{
 		yield return new WaitForSeconds(ServerSettings.instance.TimeBetweenUpdatesClient);
+
 		if (ServerSettings.instance.playerId != 0)
 		{
+			ReceivePacketDamage(damageOverTime, characterNumber, -1);
 			var packet = new DataPacket.FromClient();
-			packet = packet.CreateHealthPacket(damageOverTime, characterNumber);
-			ClientTCP.instance.SendData(packet);
+			packet = DataPacket.GetFromClientHealthPacket(damageOverTime, characterNumber, ServerSettings.instance.playerId);
+			StartCoroutine(ClientTCP.instance.SendData(packet));
 		}
 		else
 		{
+			ReceivePacketDamage(damageOverTime, characterNumber, -1);
 			var packet = new DataPacket.FromServer();
-			packet = packet.CreateHealthPacket(damageOverTime, characterNumber);
-			ServerTCP.instance.Broadcast(packet);
+			packet = DataPacket.GetFromServerHealthPacket(damageOverTime, characterNumber, 0);
+			StartCoroutine(ServerTCP.instance.Broadcast(packet));
+		}
+		damaged = false;
+
+	}
+
+	private void GetAnimationState()
+	{
+		if (targetPosition.x < transform.position.x && !flippedLeft)
+		{
+			flippedLeft = true;
+			transform.localScale = new Vector3(-1, transform.localScale.y, transform.localScale.z);
+		}
+		else if (targetPosition.x > transform.position.x && flippedLeft)
+		{
+			flippedLeft = false;
+			transform.localScale = new Vector3(1, transform.localScale.y, transform.localScale.z);
+		}
+		if (targetPosition != transform.position)
+		{
+			animationState = AnimationState.MOVING;
+		}
+		else
+		{
+			animationState = AnimationState.IDLE;
 		}
 
-		damaged = false;
-		damageOverTime = 0;
+		if (CharacterFunctions.GroundCheck(new Vector2(rend.bounds.min.x, rend.bounds.max.y),
+			new Vector2(rend.bounds.max.x, rend.bounds.max.y + 0.1f)))
+		{
+			animationState = AnimationState.JUMPING;
+		}
+
+		if (health <= 0)
+		{
+			animationState = AnimationState.DEAD;
+		}
 	}
+
+
+	private void ControlAnimation()
+	{
+		playerAnimator.SetBool("isJumping", false);
+		playerAnimator.SetBool("isDead", false);
+		playerAnimator.SetBool("isRunning", false);
+		playerAnimator.SetBool("isIdle", false);
+		switch (animationState)
+		{
+			case AnimationState.MOVING:
+				playerAnimator.SetBool("isRunning", true);
+				break;
+			case AnimationState.IDLE:
+				playerAnimator.SetBool("isIdle", true);
+				break;
+			case AnimationState.DEAD:
+				playerAnimator.SetBool("isDead", true);
+				break;
+			case AnimationState.JUMPING:
+				playerAnimator.SetBool("isJumping", true);
+				break;
+		}
+
+	}
+
 }

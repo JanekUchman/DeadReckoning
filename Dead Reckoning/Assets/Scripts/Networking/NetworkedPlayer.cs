@@ -42,7 +42,7 @@ public class NetworkedPlayer : MonoBehaviour {
 	void Update () {
 		
 	}
-	private void RecievePacketDamage(float damage, int clientId)
+	private void RecievePacketDamage(float damage, int clientId, int reportedPlayerId)
 	{
 		if (clientId != ServerSettings.instance.playerId) return;
 		GetComponent<PlayerController>().TakeDamage(damage);
@@ -54,8 +54,8 @@ public class NetworkedPlayer : MonoBehaviour {
 			yield return new WaitForSeconds(timeBetweenUpdates);
 			DataPacket.FromClient packet = new DataPacket.FromClient();
 			SerializableVector pos = transform.position;
-			packet = packet.CreatePositionPacket(pos, ServerSettings.instance.playerId);
-			ClientTCP.instance.SendData(packet);
+			packet = DataPacket.GetFromClientPositionPacket(pos, ServerSettings.instance.playerId);
+			ClientTCP.instance.SendDataWithLoss(packet);
 		}
 	}
 }

@@ -25,7 +25,6 @@ public class PlayerController : MonoBehaviour, IDamageable {
 
 	private float maxHealth;
 	[SerializeField] private float invulnerabilityTimer = 0.3f;
-    public bool canTakeDamage = true;
 
 	private int[] layerMask =  new int[3] { 8, 9, 11 };
 	private Rigidbody2D rigidbody2D;
@@ -151,8 +150,6 @@ public class PlayerController : MonoBehaviour, IDamageable {
 
 	public void TakeDamage(float damage)
 	{
-		if (!canTakeDamage) return;
-		
 		health -=damage;
 		UpdateHealthColour();
 		if (health <= 0) { StartCoroutine(KillPlayer()); }
@@ -164,15 +161,7 @@ public class PlayerController : MonoBehaviour, IDamageable {
 		var rend = GetComponent<SpriteRenderer>();
 		rend.color = new Color(rend.color.r, (healthPercentage),  (healthPercentage));
 	}
-
-	private IEnumerator SetInvulnerable()
-	{
-		canTakeDamage = false;
-		yield return new WaitForSeconds(invulnerabilityTimer);;
-		canTakeDamage = true;
-
-	}
-
+	
 	private void RespawnPlayer(Vector2 position)
 	{
 		health = maxHealth;
@@ -180,7 +169,6 @@ public class PlayerController : MonoBehaviour, IDamageable {
 		UpdateHealthColour();
 		transform.position = position;
 		playerState = PlayerState.GROUNDED;
-		canTakeDamage = true;
 		if (PlayerRespawn != null) PlayerRespawn(this, EventArgs.Empty);
 	}
 
@@ -188,12 +176,11 @@ public class PlayerController : MonoBehaviour, IDamageable {
 	{
 		if (PlayerDeath != null) PlayerDeath(this, EventArgs.Empty);
 		
-		var spawn = SpawnPointManager.instance.GetFurthestSpawn(transform);
 		playerAnimator.SetBool("isDead", true);
 		playerAnimator.SetBool("isIdle", false);
 		playerState = PlayerState.DEAD;
-		canTakeDamage = false;
 		yield return new WaitForSeconds(3.0f);
+		var spawn = SpawnPointManager.instance.GetFurthestSpawn(transform);
 		RespawnPlayer(spawn.position);
 	}
 

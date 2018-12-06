@@ -6,12 +6,14 @@ public class ServerSettings : MonoBehaviour
 {
 
 	public static ServerSettings instance;
+	public float speed = 5.5f;
 	[SerializeField]
 	private int clientTickRate;
 	[SerializeField]
 	private int serverTickRate;
 	public int numberOfClients;
 	public int playerId;
+	
 
 	public float TimeBetweenUpdatesClient
 	{

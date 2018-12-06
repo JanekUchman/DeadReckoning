@@ -33,7 +33,7 @@ public class ServerTCP : MonoBehaviour
 	{
 		if (instance != null) DestroyImmediate(gameObject);
 		else instance = this;
-		
+
 		serverPacket = new DataPacket.FromServer();
 
 		DontDestroyOnLoad(gameObject);
@@ -70,18 +70,21 @@ public class ServerTCP : MonoBehaviour
 				//Is there something to be read?
 				if (stream.DataAvailable)
 				{
-					byte[] data = new byte[1024];
+					byte[] data = new byte[DataPacket.byteSize];
 					BinaryReader br = new BinaryReader(stream);
 					//reader.Read();
-					br.Read(data, 0, 1024);
+					br.Read(data, 0, DataPacket.byteSize);
 
-					if (data != null) OnIncomingData(client, data);
+					if (data != null) StartCoroutine(OnIncomingData(client, data));
 				}
 			}
 		}
 		//Some unity functions can only be called from the main thread, so call them here
 		if (startGame)
 		{
+			//Add one since the houst counts as a client
+			serverPacket = DataPacket.GetFromServerStartGamePacket(0, clients.Count + 1);
+			StartCoroutine(Broadcast(serverPacket));
 			ServerSettings.instance.numberOfClients = clients.Count+1;
 			ServerSettings.instance.playerId = 0;
 			SceneManager.LoadScene(1);
@@ -97,14 +100,18 @@ public class ServerTCP : MonoBehaviour
 		{
 			yield return new WaitForSeconds(timeBetweenPackets);
 			SerializableVector[] pos = new SerializableVector[clients.Count+1];
+			bool[] posUpdates = new bool[clients.Count+1];
 			pos[0] = hostPlayer.transform.position;
+			posUpdates[0] = true;
 			foreach (var serverClient in clients)
 			{
 				pos[serverClient.clientId] = serverClient.position;
+				posUpdates[serverClient.clientId] = serverClient.positionUpdated;
+				serverClient.positionUpdated = false;
 			}
 
-			serverPacket = serverPacket.CreatePositionPacket(pos, 0);
-			Broadcast(serverPacket);
+			serverPacket = DataPacket.GetFromServerPositionPacket(pos, posUpdates, 0);
+			BroadcastWithLoss(serverPacket);
 		}
 	}
 
@@ -115,37 +122,64 @@ public class ServerTCP : MonoBehaviour
 		StartCoroutine(UpdateClients(ServerSettings.instance.TimeBetweenUpdatesServer));
 	}
 
-	private void OnIncomingData(ServerClient client, byte[] data)
+	private IEnumerator OnIncomingData(ServerClient client, byte[] data)
 	{
-		DataPacket.FromClient packet = (DataPacket.FromClient)Serializer.BinaryDeserialize(data);
-		if (packet == null) return;
-		Debug.Log("Client: "+packet.packetType);
-		switch (packet.packetType)
+		bool ready = false;
+		while (!ready)
 		{
-			case ServerMessages.POSITION:
-				DataPacket.RaiseUpdateClientPosition( packet.positionVector, packet.playerId);
-				foreach (var serverClient in clients)
-				{
-					if (serverClient.clientId == packet.playerId)
-					{
-						serverClient.position = packet.positionVector;
-					}
-				}
-				break;
-			case ServerMessages.FIREGUN:
-				DataPacket.RaiseClientFiredGun(packet.angle, packet.seed, packet.gunPosition, packet.playerId);
-				serverPacket =
-					serverPacket.CreateFireGunPacket(packet.angle, packet.seed, packet.gunPosition, packet.playerId);
-				Broadcast(serverPacket);
-				break;
-			case ServerMessages.HEALTH:
-				DataPacket.RaiseClientHit(packet.damage, packet.damageId);
-				serverPacket = serverPacket.CreateHealthPacket(packet.damage, packet.damageId);
-				Broadcast(serverPacket);
-				break;
-			default:
-				break;
+			ArrayList listenList = new ArrayList();
+			listenList.Add(client.tcp.Client);
+			int waitTime = (int)ServerSettings.instance.TimeBetweenUpdatesClient * 1000000;
+			Socket.Select(listenList, null, null, waitTime);
+			if (!listenList.Contains(client.tcp.Client))
+			{
+				yield return new WaitForEndOfFrame();
+			}
+			else
+			{
+				ready = true;
+			}
 		}
+		try
+		{
+			DataPacket.FromClient packet = (DataPacket.FromClient) Serializer.BinaryDeserialize(data);
+
+			switch (packet.packetType)
+			{
+				case ServerMessages.POSITION:
+					DataPacket.RaiseUpdateClientPosition(packet.positionVector, true, packet.playerId);
+					foreach (var serverClient in clients)
+					{
+						if (serverClient.clientId == packet.playerId)
+						{
+							serverClient.position = packet.positionVector;
+							serverClient.positionUpdated = true;
+						}
+					}
+
+					break;
+				case ServerMessages.FIREGUN:
+					DataPacket.RaiseClientFiredGun(packet.angle, packet.seed, packet.gunPosition, packet.playerId);
+					serverPacket =
+						DataPacket.GetFromServerPositionPacket(packet.angle, packet.seed, packet.gunPosition,
+							packet.playerId);
+					StartCoroutine(Broadcast(serverPacket));
+					break;
+				case ServerMessages.HEALTH:
+					DataPacket.RaiseClientHit(packet.damage, packet.damageId, packet.shooterId);
+					serverPacket = DataPacket.GetFromServerHealthPacket(packet.damage, packet.damageId, packet.shooterId);
+					StartCoroutine(Broadcast(serverPacket));
+					break;
+				default:
+					break;
+			}
+
+		}
+		catch (Exception e)
+		{
+			Debug.LogWarning(e);
+		}
+		
 	}
 
 	private bool IsConnected(TcpClient clientTcp)
@@ -201,9 +235,7 @@ public class ServerTCP : MonoBehaviour
 
 	private void StartGame()
 	{
-		//Add one since the houst counts as a client
-		serverPacket = serverPacket.CreateStartGamePacket(0, clients.Count+1);
-		Broadcast(serverPacket);
+		
 		startGame = true;
 	}
 
@@ -212,11 +244,19 @@ public class ServerTCP : MonoBehaviour
 		Debug.Log("Client tried to connect when max connected.");
 	}
 
-	public void Broadcast(DataPacket.FromServer packet)
+	public void BroadcastWithLoss(DataPacket.FromServer packet)
 	{
-		
 		foreach (var client in clients)
 		{
+			
+			ArrayList listenList = new ArrayList();
+			listenList.Add(client.tcp.Client);
+			int waitTime = (int)ServerSettings.instance.TimeBetweenUpdatesClient * 1000000;
+			Socket.Select(null, listenList, null, waitTime);
+			if (!listenList.Contains(client.tcp.Client)) continue;
+				
+			
+
 			packet.playerId = client.clientId;
 			StreamWriter writer = null;
 			try
@@ -242,37 +282,64 @@ public class ServerTCP : MonoBehaviour
 			{
 				if (writer != null) writer.Close();
 			}
+
+
 		}
 	}
 
-	private void SendPacket(DataPacket.FromServer packet, ServerClient client)
+	public IEnumerator Broadcast(DataPacket.FromServer packet)
 	{
-		StreamWriter writer = null;
-		try
+		
+		foreach (var client in clients)
 		{
-
-			NetworkStream tcpStream = client.tcp.GetStream();
-			if (tcpStream.CanWrite)
+			bool ready = false;
+			while (!ready)
 			{
-				//Let the clients know what their ID is and how many other clients to care about
-				Byte[] msg = Serializer.BinarySerialize(packet);
-				Debug.Log(msg);
-				//Byte[] inputToBeSent = Encoding.ASCII.GetBytes(msg.ToCharArray());
-				tcpStream.Write(msg, 0, msg.Length);
-				tcpStream.Flush();
+				ArrayList listenList = new ArrayList();
+				listenList.Add(client.tcp.Client);
+				int waitTime = (int) ServerSettings.instance.TimeBetweenUpdatesClient * 1000000;
+				Socket.Select(null, listenList, null, waitTime);
+				if (!listenList.Contains(client.tcp.Client))
+				{
+					yield return new WaitForEndOfFrame();
+				}
+				else
+				{
+					ready = true;
+				}
 			}
 
-		}
-		catch (Exception e)
-		{
-			Debug.LogError(e);
-			throw;
-		}
-		finally
-		{
-			if (writer != null) writer.Close();
+			packet.playerId = client.clientId;
+			StreamWriter writer = null;
+			try
+			{
+
+				NetworkStream tcpStream = client.tcp.GetStream();
+				if (tcpStream.CanWrite)
+				{
+					Byte[] msg = Serializer.BinarySerialize(packet);
+					Debug.Log(msg);
+					//Byte[] inputToBeSent = Encoding.ASCII.GetBytes(msg.ToCharArray());
+					tcpStream.Write(msg, 0, msg.Length);
+					tcpStream.Flush();
+				}
+
+			}
+			catch (Exception e)
+			{
+				Debug.LogError(e);
+				throw;
+			}
+			finally
+			{
+				if (writer != null) writer.Close();
+			}
+			
+			
 		}
 	}
+
+	
 
 	//A definition of who's connected to the server
 	//Only accessible by the server
@@ -281,6 +348,7 @@ public class ServerTCP : MonoBehaviour
 		public TcpClient tcp;
 		public int clientId;
 		public Vector3 position;
+		public bool positionUpdated = false;
 
 		public ServerClient(TcpClient clientSocket, int _clientId)
 		{

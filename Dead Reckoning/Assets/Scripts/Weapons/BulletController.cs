@@ -35,8 +35,9 @@ public class BulletController : MonoBehaviour {
         }
     }
 
-    public void FireBullet(float angle, CameraShakeInstance gunShakeInstance, int _id)
+    public void FireBullet(float angle, CameraShakeInstance gunShakeInstance, int _id, bool clientFire)
     {
+	    if (!clientFire) bulletDamage = 0;
 	    id = _id;
         speedDecreasePerTick = speedDecreasePerSecond / 60;
         anim = GetComponent<Animator>();
@@ -63,13 +64,18 @@ public class BulletController : MonoBehaviour {
 			
 			if (coll.GetComponent<IDamageable>() != null)
 			{
-				coll.GetComponent<IDamageable>().TakeDamage(bulletDamage);
+				if (bulletDamage != 0)
+					coll.GetComponent<IDamageable>().TakeDamage(bulletDamage);
 				BulletDeath();
 			}
 			else if (coll.gameObject.layer != Layers.bulletLayer)
 			{
 				BulletDeath();
 			}
+		}
+		else if (coll.gameObject.layer != Layers.bulletLayer && coll.GetComponent<IDamageable>() == null)
+		{
+			BulletDeath();
 		}
 		
 	}
